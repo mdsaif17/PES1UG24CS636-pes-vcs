@@ -196,8 +196,12 @@ int index_save(const Index *index) {
     }
     
     // Placeholder for the atomic persistence (next commit)
+    fflush(f);
+    fsync(fileno(f));
     fclose(f);
-    return 0;
+
+    // Atomic rename: if the system crashes, the old index remains intact
+    return rename(tmp_path, INDEX_FILE);
 }
 // Stage a file for the next commit.
 //
