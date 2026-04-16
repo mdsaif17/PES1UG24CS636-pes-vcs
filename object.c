@@ -103,6 +103,14 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
 	SHA256_Init(&ctx);
 	SHA256_Update(&ctx, header, header_len);
 	SHA256_Update(&ctx, data, size);
+	unsigned char hash[SHA256_DIGEST_LENGTH];
+	SHA256_Final(hash, &ctx);
+
+	// Convert binary hash to hex string (64 chars + null)
+	char hash_hex[65];
+	for(int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+	    sprintf(hash_hex + (i * 2), "%02x", hash[i]);
+	}
         (void)type; (void)data; (void)len; (void)id_out;
         return -1;
 }
