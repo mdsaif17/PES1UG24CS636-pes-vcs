@@ -94,9 +94,17 @@ int object_exists(const ObjectID *id) {
 //
 // Returns 0 on success, -1 on error.
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
-    // TODO: Implement
-    (void)type; (void)data; (void)len; (void)id_out;
-    return -1;
+    
+	char header[64];
+	int header_len = sprintf(header, "%s %ld", type, (long)size) + 1; // +1 for the null 			terminator
+
+	// We need to hash the header AND the data together
+	SHA256_CTX ctx;
+	SHA256_Init(&ctx);
+	SHA256_Update(&ctx, header, header_len);
+	SHA256_Update(&ctx, data, size);
+        (void)type; (void)data; (void)len; (void)id_out;
+        return -1;
 }
 
 // Read an object from the store.
