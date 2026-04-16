@@ -129,6 +129,19 @@ int tree_serialize(const Tree *tree, void **data_out, size_t *len_out) {
 //   - object_write    : save that binary buffer to the store as OBJ_TREE
 //
 // Returns 0 on success, -1 on error.
+// Helper to build a tree from a subset of index entries
+static int build_tree_recursive(IndexEntry *entries, int count, int depth, ObjectID *id_out) {
+    Tree tree;
+    tree.count = 0;
+
+    for (int i = 0; i < count; ) {
+        // Find the next component of the path at the current depth
+        // e.g., if path is "src/main.c" and depth is 0, component is "src"
+        // TODO: Logic to group files by directory prefix
+        i++; 
+    }
+    return 0;
+}
 int tree_from_index(ObjectID *id_out) {
     Index index;
     // Load the staged files into memory
