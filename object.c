@@ -186,7 +186,48 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
 // The caller is responsible for calling free(*data_out).
 // Returns 0 on success, -1 on error (file not found, corrupt, etc.).
 int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_t *len_out) {
-    // TODO: Implement
-    (void)id; (void)type_out; (void)data_out; (void)len_out;
-    return -1;
+    char path[512];
+    object_path(id, path, sizeof(path)); // 1. Build the file path from the hash 
+
+    // 2. Open and read the entire file 
+    FILE *f = fopen(path, "rb");
+    if (!f) return -1;
+
+    fseek(f, 0, SEEK_END);
+    size_t size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    uint8_t *buf = malloc(size);
+    if (!buf) { fclose(f); return -1; }
+    if (fread(buf, 1, size, f) != size) {
+        fclose(f); free(buf); return -1;
+    }
+    fclose(f);
+
+    // 4. Verify integrity: recompute the SHA-256 of the file contents 
+    ObjectID actual_id;
+    compute_hash(buf, size, &actual_id);
+    if (memcmp(id->hash, actual_id.hash, HASH_SIZE) != 0) {
+        free(buf);
+        return -1; // Return -1 if mismatch (corruption detected) 
+    }
+
+    // 3. Parse the header to extract the type string and size 
+    char *header = (char *)buf;
+    if (strncmp(header, "blob", 4) == 0) *type_out = OBJ_BLOB;
+    else if (strncmp(header, "tree", 4) == 0) *type_out = OBJ_TREE;
+    else if (strncmp(header, "commit", 6) == 0) *type_out = OBJ_COMMIT;
+    else { free(buf); return -1; }
+
+    // 6. Allocate a buffer, copy the data portion (after the \0) 
+    char *null_ptr = memchr(header, '\0', size);
+    if (!null_ptr) { free(buf); return -1; }
+    
+    *len_out = size - (null_ptr - header + 1);
+    *data_out = malloc(*len_out);
+    if (!*data_out) { free(buf); return -1; }
+    memcpy(*data_out, null_ptr + 1, *len_out);
+
+    free(buf);
+    return 0; // Success!
 }
