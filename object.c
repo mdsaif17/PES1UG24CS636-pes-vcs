@@ -93,26 +93,23 @@ int object_exists(const ObjectID *id) {
 
 //
 // Returns 0 on success, -1 on error.
+// Inside object_write in object.c
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
+    const char *type_str = (type == OBJ_BLOB) ? "blob" : (type == OBJ_TREE) ? "tree" : "commit";
     
-	char header[64];
-	int header_len = sprintf(header, "%s %ld", type, (long)size) + 1; // +1 for the null 			terminator
-
-	// We need to hash the header AND the data together
-	SHA256_CTX ctx;
-	SHA256_Init(&ctx);
-	SHA256_Update(&ctx, header, header_len);
-	SHA256_Update(&ctx, data, size);
-	unsigned char hash[SHA256_DIGEST_LENGTH];
-	SHA256_Final(hash, &ctx);
-
-	// Convert binary hash to hex string (64 chars + null)
-	char hash_hex[65];
-	for(int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-	    sprintf(hash_hex + (i * 2), "%02x", hash[i]);
-	}
-        (void)type; (void)data; (void)len; (void)id_out;
-        return -1;
+    char header[64];
+    int header_len = sprintf(header, "%s %zu", type_str, len) + 1; // +1 for the \0
+    size_t total_size = header_len + len;
+    
+    uint8_t *full_obj = malloc(total_size);
+    if (!full_obj) return -1;
+    
+    memcpy(full_obj, header, header_len);
+    memcpy(full_obj + header_len, data, len);
+    
+    // Placeholder to keep it compilable for now
+    free(full_obj);
+    return -1; 
 }
 
 // Read an object from the store.
