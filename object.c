@@ -93,7 +93,6 @@ int object_exists(const ObjectID *id) {
 
 //
 // Returns 0 on success, -1 on error.
-// Inside object_write in object.c
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
     const char *type_str = (type == OBJ_BLOB) ? "blob" : (type == OBJ_TREE) ? "tree" : "commit";
     
@@ -106,6 +105,13 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     
     memcpy(full_obj, header, header_len);
     memcpy(full_obj + header_len, data, len);
+    compute_hash(full_obj, total_size, id_out);
+
+    if (object_exists(id_out)) {
+        free(full_obj);
+        return 0; 
+    }
+    
     
     // Placeholder to keep it compilable for now
     free(full_obj);
