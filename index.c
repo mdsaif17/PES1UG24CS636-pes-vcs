@@ -135,10 +135,28 @@ int index_status(const Index *index) {
 //
 // Returns 0 on success, -1 on error.
 int index_load(Index *index) {
-    // TODO: Implement index loading
-    // (See Lab Appendix for logical steps)
-    (void)index;
-    return -1;
+    index->count = 0;
+    FILE *f = fopen(INDEX_FILE, "r");
+    if (!f) return 0; // Empty index is valid for a new repo 
+
+    char hex[HASH_HEX_SIZE + 1];
+    char path[512];
+    // Read: <mode> <hash> <mtime> <size> <path> 
+    while (index->count < MAX_INDEX_ENTRIES &&
+           fscanf(f, "%o %64s %lu %u %511[^\n]\n",
+                  &index->entries[index->count].mode,
+                  hex,
+                  &index->entries[index->count].mtime_sec,
+                  &index->entries[index->count].size,
+                  path) == 5) {
+        
+        hex_to_hash(hex, &index->entries[index->count].hash);
+        strncpy(index->entries[index->count].path, path, sizeof(index->entries[index->count].path) - 1);
+        index->count++;
+    }
+
+    fclose(f);
+    return 0;
 }
 
 // Save the index to .pes/index atomically.
