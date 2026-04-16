@@ -215,6 +215,16 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
     strncpy(commit.author, author, sizeof(commit.author) - 1);
     commit.timestamp = (uint64_t)time(NULL);
     strncpy(commit.message, message, sizeof(commit.message) - 1);
+    // 4. Write the commit object to .pes/objects
+    void *commit_data;
+    size_t commit_len;
+    if (commit_serialize(&commit, &commit_data, &commit_len) != 0) return -1;
+
+    if (object_write(OBJ_COMMIT, commit_data, commit_len, commit_id_out) != 0) {
+        free(commit_data);
+        return -1;
+    }
+    free(commit_data);
     (void)message; (void)commit_id_out;
     return -1;
 }
