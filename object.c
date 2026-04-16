@@ -121,6 +121,41 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     
 
     mkdir(shard_dir, 0755);
+    // 5. Write to a temporary file in the same shard directory
+    char final_path[512];
+    object_path(id_out, final_path, sizeof(final_path)); // Get the final .pes/objects/XX/YYY... path 
+    
+    char temp_path[512];
+    snprintf(temp_path, sizeof(temp_path), "%s/tmp_XXXXXX", shard_dir);
+    
+    // Create a temporary file with a unique name 
+    int fd = mkstemp(temp_path);
+    if (fd < 0) { 
+        free(full_obj); 
+        return -1; 
+    }
+    
+    // Write the combined header and data to disk 
+    if (write(fd, full_obj, total_size) != (ssize_t)total_size) {
+        close(fd);
+        unlink(temp_path);
+        free(full_obj);
+        return -1;
+    }
+    
+    // 6. fsync() the temporary file to ensure data reaches physical storage 
+    fsync(fd);
+    close(fd);
+    
+    // 7. rename() the temp file to the final path (this is ATOMIC on Linux) 
+    if (rename(temp_path, final_path) != 0) {
+        unlink(temp_path);
+        free(full_obj);
+        return -1;
+    }
+
+    free(full_obj); // Clean up the memory buffer 
+    return 0; // Success!
     
     
     // Placeholder to keep it compilable for now
