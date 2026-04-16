@@ -169,13 +169,36 @@ int index_load(Index *index) {
 //   - rename                           : atomically moving the temp file over the old index
 //
 // Returns 0 on success, -1 on error.
-int index_save(const Index *index) {
-    // TODO: Implement atomic index saving
-    // (See Lab Appendix for logical steps)
-    (void)index;
-    return -1;
+// Helper for qsort to keep index entries ordered by path
+static int compare_index_entries(const void *a, const void *b) {
+    return strcmp(((IndexEntry *)a)->path, ((IndexEntry *)b)->path);
 }
 
+int index_save(const Index *index) {
+    // 1. Create a copy to sort so we don't modify the original during the save process
+    Index sorted = *index;
+    qsort(sorted.entries, sorted.count, sizeof(IndexEntry), compare_index_entries);
+
+    // 2. Open a temporary file for an atomic write
+    char tmp_path[512];
+    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", INDEX_FILE);
+    FILE *f = fopen(tmp_path, "w");
+    if (!f) return -1;
+
+    // 3. Write entries in text format: <mode> <hash> <mtime> <size> <path>
+    for (int i = 0; i < sorted.count; i++) {
+        char hex[HASH_HEX_SIZE + 1];
+        hash_to_hex(&sorted.entries[i].hash, hex);
+        fprintf(f, "%o %s %lu %u %s\n",
+                sorted.entries[i].mode, hex, 
+                (unsigned long)sorted.entries[i].mtime_sec,
+                sorted.entries[i].size, sorted.entries[i].path);
+    }
+    
+    // Placeholder for the atomic persistence (next commit)
+    fclose(f);
+    return 0;
+}
 // Stage a file for the next commit.
 //
 // HINTS - Useful functions and syscalls:
