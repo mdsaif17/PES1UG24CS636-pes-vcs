@@ -138,6 +138,20 @@ static int build_tree_recursive(IndexEntry *entries, int count, int depth, Objec
         // Find the next component of the path at the current depth
         // e.g., if path is "src/main.c" and depth is 0, component is "src"
         // TODO: Logic to group files by directory prefix
+        char *path = entries[i].path;
+        char *slash = strchr(path + depth, '/');
+
+        if (!slash) {
+            // It's a file in the current directory
+            TreeEntry *te = &tree.entries[tree.count++];
+            te->mode = entries[i].mode;
+            te->hash = entries[i].hash;
+            strncpy(te->name, path + depth, sizeof(te->name) - 1);
+            i++;
+        } else {
+            // It's a subdirectory - handled in the next commit
+            i++;
+        }
         i++; 
     }
     return 0;
