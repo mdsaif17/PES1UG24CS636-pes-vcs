@@ -16,6 +16,7 @@
 // TODO functions:     index_load, index_save, index_add
 
 #include "index.h"
+#include "tree.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,6 +24,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
+// Add these to tell index.c that these functions exist elsewhere
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
+uint32_t get_file_mode(const char *path);
 
 // ─── PROVIDED ────────────────────────────────────────────────────────────────
 
@@ -216,22 +220,37 @@ int index_add(Index *index, const char *path) {
     struct stat st;
     if (stat(path, &st) != 0) return -1;
 
-    // 1. Read the target file's contents
+    // 1. Read file contents into a buffer
     int fd = open(path, O_RDONLY);
     if (fd < 0) return -1;
     void *data = malloc(st.st_size);
+    if (!data) { close(fd); return -1; }
     if (read(fd, data, st.st_size) != (ssize_t)st.st_size) {
         close(fd); free(data); return -1;
     }
     close(fd);
 
-    // 2. Write the contents to the object store as a BLOB
+    // 2. Write content to the object store as a blob
     ObjectID blob_id;
     if (object_write(OBJ_BLOB, data, st.st_size, &blob_id) != 0) {
         free(data); return -1;
     }
     free(data);
 
-    // Placeholder for metadata update (next commit)
-    return 0;
+    // 3. Find existing entry or create a new one
+    IndexEntry *entry = index_find(index, path);
+    if (!entry) {
+        if (index->count >= MAX_INDEX_ENTRIES) return -1;
+        entry = &index->entries[index->count++];
+        snprintf(entry->path, sizeof(entry->path), "%s", path);
+    }
+
+    // 4. Update metadata correctly
+    entry->mode = get_file_mode(path); // Function from tree.c
+    entry->hash = blob_id;
+    entry->mtime_sec = (uint64_t)st.st_mtime;
+    entry->size = (uint32_t)st.st_size;
+
+    // 5. Atomic save to disk
+    return index_save(index);
 }
