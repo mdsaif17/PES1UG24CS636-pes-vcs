@@ -134,26 +134,41 @@ static int build_tree_recursive(IndexEntry *entries, int count, int depth, Objec
     Tree tree;
     tree.count = 0;
 
-    for (int i = 0; i < count; ) {
-        // Find the next component of the path at the current depth
-        // e.g., if path is "src/main.c" and depth is 0, component is "src"
-        // TODO: Logic to group files by directory prefix
+    for (int i = 0; i < count; ) { // Remove the i++ from here
         char *path = entries[i].path;
         char *slash = strchr(path + depth, '/');
 
         if (!slash) {
-            // It's a file in the current directory
+            // 1. It's a file in the current directory
             TreeEntry *te = &tree.entries[tree.count++];
             te->mode = entries[i].mode;
             te->hash = entries[i].hash;
             strncpy(te->name, path + depth, sizeof(te->name) - 1);
-            i++;
+            te->name[sizeof(te->name) - 1] = '\0';
+            i++; // Increment after processing a single file
         } else {
-            // It's a subdirectory - handled in the next commit
-            i++;
+            // 2. It's a subdirectory
+            size_t dir_name_len = slash - (path + depth);
+            int j = i;
+            
+            // Group all files that share this directory prefix
+            while (j < count && strncmp(entries[j].path + depth, path + depth, dir_name_len) == 0 &&
+                   entries[j].path[depth + dir_name_len] == '/') {
+                j++;
+            }
+
+            TreeEntry *te = &tree.entries[tree.count++];
+            te->mode = MODE_DIR; // 040000
+            strncpy(te->name, path + depth, dir_name_len);
+            te->name[dir_name_len] = '\0';
+
+            // Recursive call to build the sub-tree from the grouped entries
+            build_tree_recursive(&entries[i], j - i, depth + dir_name_len + 1, &te->hash);
+            
+            i = j; // Move 'i' to the next group of files
         }
-        i++; 
     }
+    // TODO: Serialization (next commit)
     return 0;
 }
 int tree_from_index(ObjectID *id_out) {
