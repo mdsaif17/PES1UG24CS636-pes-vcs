@@ -210,6 +210,11 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
     } else {
         commit.has_parent = 0; // This is the first commit
     }
+    // 3. Set Author, Timestamp, and Message
+    const char *author = pes_author(); 
+    strncpy(commit.author, author, sizeof(commit.author) - 1);
+    commit.timestamp = (uint64_t)time(NULL);
+    strncpy(commit.message, message, sizeof(commit.message) - 1);
     (void)message; (void)commit_id_out;
     return -1;
 }
