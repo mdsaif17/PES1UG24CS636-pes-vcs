@@ -169,23 +169,23 @@ static int build_tree_recursive(IndexEntry *entries, int count, int depth, Objec
         }
     }
     // TODO: Serialization (next commit)
+    // 3. Serialize and write the tree object
+    void *tree_data;
+    size_t tree_len;
+    if (tree_serialize(&tree, &tree_data, &tree_len) != 0) return -1;
+    
+    if (object_write(OBJ_TREE, tree_data, tree_len, id_out) != 0) {
+        free(tree_data);
+        return -1;
+    }
+    
+    free(tree_data);
     return 0;
 }
 int tree_from_index(ObjectID *id_out) {
     Index index;
-    // Load the staged files into memory
-    if (index_load(&index) != 0) {
-        return -1;
-    }
-
-    // If there are no files in the index, we can't build a tree
-    if (index.count == 0) {
-        return -1;
-    }
-
-    // We will pass the index entries to a recursive helper next
-    // (To be implemented in Commit 2.2)
+    if (index_load(&index) != 0) return -1;
+    if (index.count == 0) return -1;
     
-    (void)id_out; // Placeholder
-    return -1; 
+    return build_tree_recursive(index.entries, index.count, 0, id_out);
 }
