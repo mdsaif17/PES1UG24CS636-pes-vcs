@@ -203,6 +203,13 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
     if (tree_from_index(&commit.tree) != 0) {
         return -1; // Fail if index is empty or corrupted
     }
+    // 2. Link to the previous commit (Parent)
+    // head_read is provided and looks at .pes/HEAD
+    if (head_read(&commit.parent) == 0) {
+        commit.has_parent = 1;
+    } else {
+        commit.has_parent = 0; // This is the first commit
+    }
     (void)message; (void)commit_id_out;
     return -1;
 }
